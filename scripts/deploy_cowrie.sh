@@ -22,17 +22,22 @@ apt-get -y install python-dev git supervisor authbind openssl python-virtualenv 
 pip install -U supervisor
 /etc/init.d/supervisor start || true
 
+sed -i 's/#Port/Port/g' /etc/ssh/sshd_config
 sed -i 's/Port 22$/Port 2222/g' /etc/ssh/sshd_config
 service ssh restart
 useradd -d /home/cowrie -s /bin/bash -m cowrie -g users
 
 cd /opt
 git clone https://github.com/micheloosterhof/cowrie.git cowrie
+cd cowrie
+
+# Most recent known working version
+git checkout 34f8464
 
 # Config for requirements.txt
 cat > /opt/cowrie/requirements.txt <<EOF
 twisted>=17.1.0
-cryptography>=0.9.1,<=1.8
+cryptography>=2.1
 configparser
 pyopenssl
 pyparsing
@@ -43,9 +48,9 @@ attrs
 service_identity
 python-dateutil
 tftpy
+bcrypt
 EOF
 
-cd cowrie
 virtualenv cowrie-env #env name has changed to cowrie-env on latest version of cowrie
 source cowrie-env/bin/activate
 # without the following, i get this error:
@@ -59,17 +64,19 @@ chmod 755 registration.sh
 # Note: this will export the HPF_* variables
 . ./registration.sh $server_url $deploy_key "cowrie"
 
+cd etc
 cp cowrie.cfg.dist cowrie.cfg
 sed -i 's/hostname = svr04/hostname = server/g' cowrie.cfg
-sed -i 's/#listen_port = 2222/listen_port = 22/g' cowrie.cfg
 sed -i 's/listen_endpoints = tcp:2222:interface=0.0.0.0/listen_endpoints = tcp:22:interface=0.0.0.0/g' cowrie.cfg
-sed -i 's/ssh_version_string = SSH-2.0-OpenSSH_6.0p1 Debian-4+deb7u2/ssh_version_string = SSH-2.0-OpenSSH_6.7p1 Ubuntu-5ubuntu1.3/g' cowrie.cfg
+sed -i 's/version = SSH-2.0-OpenSSH_6.0p1 Debian-4+deb7u2/version = SSH-2.0-OpenSSH_6.7p1 Ubuntu-5ubuntu1.3/g' cowrie.cfg
 sed -i 's/#\[output_hpfeeds\]/[output_hpfeeds]/g' cowrie.cfg
+sed -i '/\[output_hpfeeds\]/!b;n;cenabled = true' cowrie.cfg
 sed -i "s/#server = hpfeeds.mysite.org/server = $HPF_HOST/g" cowrie.cfg
 sed -i "s/#port = 10000/port = $HPF_PORT/g" cowrie.cfg
 sed -i "s/#identifier = abc123/identifier = $HPF_IDENT/g" cowrie.cfg
 sed -i "s/#secret = secret/secret = $HPF_SECRET/g" cowrie.cfg
 sed -i 's/#debug=false/debug=false/' cowrie.cfg
+cd ..
 
 chown -R cowrie:users /opt/cowrie/
 touch /etc/authbind/byport/22
@@ -85,8 +92,8 @@ cat > /etc/supervisor/conf.d/cowrie.conf <<EOF
 [program:cowrie]
 command=/opt/cowrie/bin/cowrie start
 directory=/opt/cowrie
-stdout_logfile=/opt/cowrie/log/cowrie.out
-stderr_logfile=/opt/cowrie/log/cowrie.err
+stdout_logfile=/opt/cowrie/var/log/cowrie/cowrie.out
+stderr_logfile=/opt/cowrie/var/log/cowrie/cowrie.err
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -95,3 +102,4 @@ user=cowrie
 EOF
 
 supervisorctl update
+

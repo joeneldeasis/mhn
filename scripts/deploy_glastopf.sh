@@ -10,8 +10,8 @@ if [ $# -ne 2 ]
         exit 1
 fi
 
-# Check if Ubuntu 14.04 or 16.04
-if [ "$(lsb_release -r -s)" != "14.04" ] && [ "$(lsb_release -r -s)" != "16.04" ]; then
+# Check if Ubuntu 18.04 or 16.04
+if [ "$(lsb_release -r -s)" != "18.04" ] && [ "$(lsb_release -r -s)" != "16.04" ]; then
     echo "WARNING: This operating system may not be supported by this script."
     echo "Continue? (y/n)"
     read PROMPT
@@ -35,7 +35,7 @@ else
     apt-get install -y apache2 python2.7 python-openssl python-gevent libevent-dev python2.7-dev build-essential make python-chardet python-requests python-sqlalchemy python-lxml python-beautifulsoup mongodb python-pip python-dev python-setuptools g++ git php php-dev liblapack-dev gfortran libmysqlclient-dev libxml2-dev libxslt-dev supervisor
 fi
 
-pip install -e git+https://github.com/threatstream/hpfeeds.git#egg=hpfeeds-dev
+pip install -e git+https://github.com/pwnlandia/hpfeeds.git#egg=hpfeeds-dev
 
 # Install and configure the PHP sandbox
 cd /opt
@@ -182,6 +182,15 @@ sensorid = None
 
 [profiler]
 enabled = False
+
+[s3storage]
+enabled = False
+endpoint = http://localhost:8080/
+aws_access_key_id = YOUR_aws_access_key_id
+aws_secret_access_key = YOUR_aws_access_key_id
+bucket = glastopf
+region = eu-west-1
+signature_version = s3	
 EOF
 
 # Set up supervisor
@@ -198,3 +207,4 @@ stopsignal=QUIT
 EOF
 
 supervisorctl update
+supervisorctl restart all
